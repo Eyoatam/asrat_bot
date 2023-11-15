@@ -9,13 +9,11 @@ import (
 
 	"github.com/eyoatam/asrat_bot/internal/bot"
 
-	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/telegram-webhook", bot.WebHookHandler)
+	http.HandleFunc("/telegram-webhook", bot.WebHookHandler)
 
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("failed to load .env")
@@ -33,7 +31,6 @@ func main() {
 	}
 
 	s := &http.Server{
-		Handler:      r,
 		Addr:         fmt.Sprintf("127.0.0.1:%v", port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
