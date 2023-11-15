@@ -27,7 +27,7 @@ type KeyboardButton struct {
 	Text string `json:"text"`
 }
 
-type ReplyMarkup struct {
+type ReplyKeyboardMarkup struct {
 	Keyboard [][]KeyboardButton `json:"keyboard"`
 }
 
@@ -37,25 +37,26 @@ type InlineKeyboardButton struct {
 	URL          string `json:"url,omitempty"`
 }
 
-type ReplyMarkupInline struct {
+type InlineKeyboardMarkup struct {
 	InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
 }
 
+// represents the request sent to the Telegram API for sending messages
 type SendMessageRequest struct {
 	ChatID int    `json:"chat_id"`
 	Text   string `json:"text"`
 }
 
 type SendMessageButtonRequest struct {
-	ChatID      int         `json:"chat_id"`
-	Text        string      `json:"text"`
-	ReplyMarkup ReplyMarkup `json:"reply_markup"`
+	ChatID      int                 `json:"chat_id"`
+	Text        string              `json:"text"`
+	ReplyMarkup ReplyKeyboardMarkup `json:"reply_markup"`
 }
 
 type SendMessageInlineRequest struct {
-	ChatID      int               `json:"chat_id"`
-	Text        string            `json:"text"`
-	ReplyMarkup ReplyMarkupInline `json:"reply_markup"`
+	ChatID      int                  `json:"chat_id"`
+	Text        string               `json:"text"`
+	ReplyMarkup InlineKeyboardMarkup `json:"reply_markup"`
 }
 
 type LabeledPrice struct {
@@ -107,7 +108,7 @@ func (b *Bot) ProcessMessage(chatID int, message string) {
 	case "/start", "Help":
 		b.handleStartOrHelpCommand(chatID)
 	case "Pay Asrat":
-		b.SendMessage(chatID, "Please enter the amount", ReplyMarkup{})
+		b.SendMessage(chatID, "Please enter the amount", ReplyKeyboardMarkup{})
 	default:
 		b.handleDefault(chatID)
 	}
@@ -123,7 +124,7 @@ func (b *Bot) handleStartOrHelpCommand(chatID int) {
 	msg := string(data)
 	fmt.Println()
 
-	b.SendMessage(chatID, msg, ReplyMarkup{
+	b.SendMessage(chatID, msg, ReplyKeyboardMarkup{
 		Keyboard: [][]KeyboardButton{
 			{{Text: "Pay Asrat"}},
 			{{Text: "Help"}},
@@ -139,7 +140,7 @@ func (b *Bot) handleDefault(chatID int) {
 	fmt.Print(amount < 56)
 	if err != nil || amount < 56 {
 		fmt.Println(err)
-		b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyMarkup{})
+		b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
 		return
 	}
 	if ChatID == chatID {
@@ -183,7 +184,7 @@ func (b *Bot) handlePayments(invoice SendInvoiceRequest) {
 	}
 }
 
-func (b *Bot) SendMessage(chatID int, text string, markup ReplyMarkup) {
+func (b *Bot) SendMessage(chatID int, text string, markup ReplyKeyboardMarkup) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
 
 	var message interface{}
@@ -222,7 +223,7 @@ func (b *Bot) SendMessage(chatID int, text string, markup ReplyMarkup) {
 	}
 }
 
-func (b *Bot) SendMessageInline(chatID int, text string, markup ReplyMarkupInline) {
+func (b *Bot) SendMessageInline(chatID int, text string, markup InlineKeyboardMarkup) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
 	var message interface{}
 
