@@ -1,5 +1,3 @@
-// hookurl = https://0b99-196-188-126-6.ngrok-free.app/telegram-message
-
 package main
 
 import (
@@ -7,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/eyoatam/asrat_bot/internal/bot"
@@ -19,7 +16,6 @@ import (
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/telegram-webhook", bot.WebHookHandler)
-	// print(bot.ChatID)
 
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("failed to load .env")
@@ -31,9 +27,9 @@ func main() {
 	}
 
 	b.Connect()
-	port := 4000
+	port := "4000"
 	if os.Getenv("PORT") != "" {
-		port, _ = strconv.Atoi(os.Getenv("PORT"))
+		port = os.Getenv("PORT")
 	}
 
 	s := &http.Server{

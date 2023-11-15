@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Bot struct {
@@ -27,15 +31,46 @@ type ReplyMarkup struct {
 	Keyboard [][]KeyboardButton `json:"keyboard"`
 }
 
+type InlineKeyboardButton struct {
+	Text         string `json:"text"`
+	CallbackData string `json:"callback_data,omitempty"`
+	URL          string `json:"url,omitempty"`
+}
+
+type ReplyMarkupInline struct {
+	InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
+}
+
 type SendMessageRequest struct {
 	ChatID int    `json:"chat_id"`
 	Text   string `json:"text"`
 }
 
-type SendMessageWithButtonRequest struct {
+type SendMessageButtonRequest struct {
 	ChatID      int         `json:"chat_id"`
 	Text        string      `json:"text"`
 	ReplyMarkup ReplyMarkup `json:"reply_markup"`
+}
+
+type SendMessageInlineRequest struct {
+	ChatID      int               `json:"chat_id"`
+	Text        string            `json:"text"`
+	ReplyMarkup ReplyMarkupInline `json:"reply_markup"`
+}
+
+type LabeledPrice struct {
+	Label  string `json:"label"`
+	Amount int    `json:"amount"`
+}
+
+type SendInvoiceRequest struct {
+	ChatID        int            `json:"chat_id"`
+	Title         string         `json:"title"`
+	Description   string         `json:"description"`
+	Payload       string         `json:"payload"`
+	ProviderToken string         `json:"provider_token"`
+	Currency      string         `json:"currency"`
+	Prices        []LabeledPrice `json:"prices"`
 }
 
 func (b *Bot) Connect() {
@@ -67,39 +102,142 @@ func (b *Bot) Connect() {
 	}
 }
 
-func (b *Bot) ProcessMessage(chatid int, message string) {
+func (b *Bot) ProcessMessage(chatID int, message string) {
 	switch message {
-	case "/start":
-		msg := "Welcome to this bot!!"
-		b.SendMessage(chatid, msg, ReplyMarkup{})
-		// b.SendMessage(chatid, msg, ReplyMarkup{
-		// 	Keyboard: [][]KeyboardButton{
-		// 		{{Text: "Button"}, {Text: "Button1"}},
-		// 		{{Text: "Button2"}},
-		// 		{{Text: "Button3"}, {Text: "Button4"}},
-		// 	},
-		// })
+	case "/start", "Help":
+		b.handleStartOrHelpCommand(chatID)
+	case "Pay Asrat":
+		b.SendMessage(chatID, "Please enter the amount", ReplyMarkup{})
+	default:
+		b.handleDefault(chatID)
 	}
 }
 
-func (b *Bot) SendMessage(chatid int, text string, markup ReplyMarkup) {
+func (b *Bot) handleStartOrHelpCommand(chatID int) {
+	data, err := os.ReadFile("welcome.txt")
+	if err != nil {
+		fmt.Println("File reading error", err)
+		return
+	}
+	fmt.Println("Contents of file:")
+	msg := string(data)
+	fmt.Println()
+
+	b.SendMessage(chatID, msg, ReplyMarkup{
+		Keyboard: [][]KeyboardButton{
+			{{Text: "Pay Asrat"}},
+			{{Text: "Help"}},
+		},
+	})
+}
+
+func (b *Bot) handleDefault(chatID int) {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Failed to load .env")
+	}
+	amount, err := strconv.Atoi(Text)
+	fmt.Print(amount < 56)
+	if err != nil || amount < 56 {
+		fmt.Println(err)
+		b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyMarkup{})
+		return
+	}
+	if ChatID == chatID {
+		invoice := SendInvoiceRequest{
+			ChatID:        chatID,
+			Title:         "Test Payment",
+			Description:   "Payment For Asrat",
+			Payload:       "blah blah blah",
+			ProviderToken: os.Getenv("PROVIDER_TOKEN"),
+			Currency:      "ETB",
+			Prices: []LabeledPrice{
+				{Label: "some label for test", Amount: amount * 100},
+			},
+		}
+		b.handlePayments(invoice)
+	}
+}
+
+func (b *Bot) handlePayments(invoice SendInvoiceRequest) {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendInvoice", b.Token)
+	invoiceMessage := invoice
+
+	jsonInvoice, err := json.Marshal(invoiceMessage)
+	if err != nil {
+		log.Fatal("Error encoding JSON of Invoice Request: ", err)
+	}
+
+	invoiceReader := bytes.NewReader(jsonInvoice)
+	res, err := http.Post(apiURL, "application/json", invoiceReader)
+
+	if err != nil {
+		log.Fatal("Failed to send Invoice: ", err)
+	}
+
+	defer res.Body.Close()
+
+	var response TelegramResponse
+	json.NewDecoder(res.Body).Decode(&response)
+	if response.Ok {
+		fmt.Println(response.Result)
+	}
+}
+
+func (b *Bot) SendMessage(chatID int, text string, markup ReplyMarkup) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
 
 	var message interface{}
 
 	if markup.Keyboard == nil {
 		message = SendMessageRequest{
-			ChatID: chatid,
+			ChatID: chatID,
 			Text:   text,
 		}
 	} else {
-		message = SendMessageWithButtonRequest{
-			ChatID:      chatid,
+		message = SendMessageButtonRequest{
+			ChatID:      chatID,
 			Text:        text,
 			ReplyMarkup: markup,
 		}
 	}
 
+	jsonMsg, err := json.Marshal(message)
+	if err != nil {
+		log.Fatal("Error encoding JSON: ", err)
+	}
+
+	msgReader := bytes.NewReader(jsonMsg)
+	res, err := http.Post(apiURL, "application/json", msgReader)
+	if err != nil {
+		log.Fatal("Failed to send message: ", err)
+	}
+
+	defer res.Body.Close()
+
+	var response TelegramResponse
+	json.NewDecoder(res.Body).Decode(&response)
+	fmt.Println(response.Description)
+	if response.Ok {
+		fmt.Println("Message sent successfully")
+	}
+}
+
+func (b *Bot) SendMessageInline(chatID int, text string, markup ReplyMarkupInline) {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
+	var message interface{}
+
+	if markup.InlineKeyboard == nil {
+		message = SendMessageRequest{
+			ChatID: chatID,
+			Text:   text,
+		}
+	} else {
+		message = SendMessageInlineRequest{
+			ChatID:      chatID,
+			Text:        text,
+			ReplyMarkup: markup,
+		}
+	}
 	jsonMsg, err := json.Marshal(message)
 	if err != nil {
 		log.Fatal("Error encoding JSON: ", err)

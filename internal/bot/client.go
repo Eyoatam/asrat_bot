@@ -10,6 +10,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	ChatID int
+	Text   string
+)
+
 type Update struct {
 	UpdateID int      `json:"update_id"`
 	Message  Messages `json:"message,omitempty"`
@@ -31,8 +36,8 @@ type Chat struct {
 func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 	var update Update
 	json.NewDecoder(r.Body).Decode(&update)
-	ChatID := update.Message.Chat.ID
-	Text := update.Message.Text
+	ChatID = update.Message.Chat.ID
+	Text = update.Message.Text
 
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("failed to load .env")
