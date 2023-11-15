@@ -12,5 +12,6 @@ PROVIDER_TOKEN - the payment provider token
 ## Running the bot
 
 ```
+go mod download
 go run main.go
 ```
