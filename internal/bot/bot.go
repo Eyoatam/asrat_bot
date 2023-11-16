@@ -108,28 +108,28 @@ func (b *Bot) Connect() {
 	}
 }
 
-func (b *Bot) ProcessMessage(chatID int, message string) {
+func (b *Bot) ProcessMessage(message string) {
 	switch message {
 	case "/start", "Help":
-		b.handleStartOrHelpCommand(chatID)
+		b.handleStartOrHelpCommand()
 	case "Pay Asrat":
-		b.SendMessage(chatID, "Please enter the amount", ReplyKeyboardMarkup{})
+		b.SendMessage("Please enter the amount", ReplyKeyboardMarkup{})
+	case "":
+		b.SendMessage("Thank you for paying", ReplyKeyboardMarkup{})
 	default:
-		b.handleDefault(chatID, message)
+		b.handleDefault(message)
 	}
 }
 
-func (b *Bot) handleStartOrHelpCommand(chatID int) {
+func (b *Bot) handleStartOrHelpCommand() {
 	data, err := os.ReadFile("welcome.txt")
 	if err != nil {
 		fmt.Println("File reading error", err)
 		return
 	}
-	fmt.Println("Contents of file:")
 	msg := string(data)
-	fmt.Println()
 
-	b.SendMessage(chatID, msg, ReplyKeyboardMarkup{
+	b.SendMessage(msg, ReplyKeyboardMarkup{
 		Keyboard: [][]KeyboardButton{
 			{{Text: "Pay Asrat"}},
 			{{Text: "Help"}},
@@ -137,37 +137,33 @@ func (b *Bot) handleStartOrHelpCommand(chatID int) {
 	})
 }
 
-func (b *Bot) handleDefault(chatID int, message string) {
+func (b *Bot) handleDefault(message string) {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Failed to load .env")
 	}
 	if amount, err := strconv.Atoi(message); err == nil && amount >= 56 {
-		b.handlePayment(chatID, amount)
+		b.handlePayment(amount)
 	} else {
-		b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
+		b.SendMessage("Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
 	}
 }
 
-func (b *Bot) handlePayment(chatID, amount int) {
+func (b *Bot) handlePayment(amount int) {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendInvoice", b.Token)
+
 	invoice := SendInvoiceRequest{
-		ChatID:        chatID,
-		Title:         "Test Payment",
+		ChatID:        ChatID,
+		Title:         "Asrat",
 		Description:   "Payment For Asrat",
-		Payload:       "pay-load",
+		Payload:       "payment-payload",
 		ProviderToken: os.Getenv("PROVIDER_TOKEN"),
 		Currency:      "ETB",
 		Prices: []LabeledPrice{
-			{Label: "some label for test", Amount: amount * 100},
+			{Label: "Sub Total", Amount: amount * 100},
 		},
 	}
-	b.handlePayments(invoice)
-}
 
-func (b *Bot) handlePayments(invoice SendInvoiceRequest) {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendInvoice", b.Token)
-	invoiceMessage := invoice
-
-	jsonInvoice, err := json.Marshal(invoiceMessage)
+	jsonInvoice, err := json.Marshal(invoice)
 	if err != nil {
 		log.Fatal("Error encoding JSON of Invoice Request: ", err)
 	}
@@ -205,19 +201,19 @@ func (b *Bot) AnswerPreCheckoutQuery(preCheckoutQueryID string, ok bool, errorMe
 	defer res.Body.Close()
 }
 
-func (b *Bot) SendMessage(chatID int, text string, markup ReplyKeyboardMarkup) {
+func (b *Bot) SendMessage(text string, markup ReplyKeyboardMarkup) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
 
 	var message interface{}
 
 	if markup.Keyboard == nil {
 		message = SendMessageRequest{
-			ChatID: chatID,
+			ChatID: ChatID,
 			Text:   text,
 		}
 	} else {
 		message = SendMessageButtonRequest{
-			ChatID:      chatID,
+			ChatID:      ChatID,
 			Text:        text,
 			ReplyMarkup: markup,
 		}
