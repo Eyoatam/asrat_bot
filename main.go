@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/eyoatam/asrat_bot/internal/bot"
-
 	"github.com/joho/godotenv"
 )
 

@@ -74,6 +74,11 @@ type SendInvoiceRequest struct {
 	Prices        []LabeledPrice `json:"prices"`
 }
 
+type AnswerPreCheckoutQueryRequest struct {
+	PreCheckQueryID string `json:"pre_checkout_query_id"`
+	Ok              bool   `json:"ok"`
+}
+
 func (b *Bot) Connect() {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", b.Token)
 
@@ -110,7 +115,7 @@ func (b *Bot) ProcessMessage(chatID int, message string) {
 	case "Pay Asrat":
 		b.SendMessage(chatID, "Please enter the amount", ReplyKeyboardMarkup{})
 	default:
-		b.handleDefault(chatID)
+		b.handleDefault(chatID, message)
 	}
 }
 
@@ -132,31 +137,30 @@ func (b *Bot) handleStartOrHelpCommand(chatID int) {
 	})
 }
 
-func (b *Bot) handleDefault(chatID int) {
+func (b *Bot) handleDefault(chatID int, message string) {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Failed to load .env")
 	}
-	amount, err := strconv.Atoi(Text)
-	fmt.Print(amount < 56)
-	if err != nil || amount < 56 {
-		fmt.Println(err)
+	if amount, err := strconv.Atoi(message); err == nil && amount >= 56 {
+		b.handlePayment(chatID, amount)
+	} else {
 		b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
-		return
 	}
-	if ChatID == chatID {
-		invoice := SendInvoiceRequest{
-			ChatID:        chatID,
-			Title:         "Test Payment",
-			Description:   "Payment For Asrat",
-			Payload:       "blah blah blah",
-			ProviderToken: os.Getenv("PROVIDER_TOKEN"),
-			Currency:      "ETB",
-			Prices: []LabeledPrice{
-				{Label: "some label for test", Amount: amount * 100},
-			},
-		}
-		b.handlePayments(invoice)
+}
+
+func (b *Bot) handlePayment(chatID, amount int) {
+	invoice := SendInvoiceRequest{
+		ChatID:        chatID,
+		Title:         "Test Payment",
+		Description:   "Payment For Asrat",
+		Payload:       "pay-load",
+		ProviderToken: os.Getenv("PROVIDER_TOKEN"),
+		Currency:      "ETB",
+		Prices: []LabeledPrice{
+			{Label: "some label for test", Amount: amount * 100},
+		},
 	}
+	b.handlePayments(invoice)
 }
 
 func (b *Bot) handlePayments(invoice SendInvoiceRequest) {
@@ -174,14 +178,31 @@ func (b *Bot) handlePayments(invoice SendInvoiceRequest) {
 	if err != nil {
 		log.Fatal("Failed to send Invoice: ", err)
 	}
+	defer res.Body.Close()
+}
+
+func (b *Bot) AnswerPreCheckoutQuery(preCheckoutQueryID string, ok bool, errorMessage string) {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/answerPreCheckoutQuery", b.Token)
+
+	response := AnswerPreCheckoutQueryRequest{
+		PreCheckQueryID: preCheckoutQueryID,
+		Ok:              ok,
+	}
+
+	responseData, err := json.Marshal(response)
+	if err != nil {
+		log.Println("Error encoding JSON for answerPreCheckoutQuery response:", err)
+		return
+	}
+
+	responseReader := bytes.NewReader(responseData)
+	res, err := http.Post(apiURL, "application/json", responseReader)
+	if err != nil {
+		log.Println("Failed to send answerPreCheckoutQuery response:", err)
+		return
+	}
 
 	defer res.Body.Close()
-
-	var response TelegramResponse
-	json.NewDecoder(res.Body).Decode(&response)
-	if response.Ok {
-		fmt.Println(response.Result)
-	}
 }
 
 func (b *Bot) SendMessage(chatID int, text string, markup ReplyKeyboardMarkup) {
