@@ -34,7 +34,7 @@ type Messages struct {
 	Message_Id        int               `json:"message_id"`
 	Text              string            `json:"text,omitempty"`
 	Chat              Chat              `json:"chat,omitempty"`
-	SuccessfulPayment SuccessfulPayment `json:"successful_payment "`
+	SuccessfulPayment SuccessfulPayment `json:"successful_payment"`
 }
 
 type Chat struct {
@@ -62,5 +62,6 @@ func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 		b.AnswerPreCheckoutQuery(update.PreCheckoutQuery.ID, true, "")
 	}
 	b.ProcessMessage(Text)
+	// log.Println("SuccessfulPayment Payload: ", update.Message.SuccessfulPayment.InvoicePayload)
 	// log.Printf("\nChat ID = %d\nText = %s", update.Message.Chat.ID, update.Message.Text)
 }

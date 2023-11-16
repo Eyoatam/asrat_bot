@@ -115,7 +115,9 @@ func (b *Bot) ProcessMessage(message string) {
 	case "Pay Asrat":
 		b.SendMessage("Please enter the amount", ReplyKeyboardMarkup{})
 	case "":
-		b.SendMessage("Thank you for paying", ReplyKeyboardMarkup{})
+		if update.Message.SuccessfulPayment.InvoicePayload == "payment-payload" {
+			b.SendMessage("Thank you for paying", ReplyKeyboardMarkup{})
+		}
 	default:
 		b.handleDefault(message)
 	}
