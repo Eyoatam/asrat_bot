@@ -116,7 +116,7 @@ func (b *Bot) ProcessMessage(message string) {
 		b.SendMessage("Please enter the amount", ReplyKeyboardMarkup{})
 	case "":
 		if update.Message.SuccessfulPayment.InvoicePayload == "payment-payload" {
-			b.SendMessage("Thank you for paying", ReplyKeyboardMarkup{})
+			b.SendMessage("Thank you for paying!", ReplyKeyboardMarkup{})
 		}
 	default:
 		b.handleDefault(message)
@@ -145,9 +145,9 @@ func (b *Bot) handleDefault(message string) {
 	}
 	if amount, err := strconv.Atoi(message); err == nil && amount >= 56 {
 		b.handlePayment(amount)
-	} else {
-		b.SendMessage("Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
+		return
 	}
+	b.SendMessage("Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
 }
 
 func (b *Bot) handlePayment(amount int) {
@@ -199,7 +199,6 @@ func (b *Bot) AnswerPreCheckoutQuery(preCheckoutQueryID string, ok bool, errorMe
 		log.Println("Failed to send answerPreCheckoutQuery response:", err)
 		return
 	}
-
 	defer res.Body.Close()
 }
 

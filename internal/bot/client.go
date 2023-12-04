@@ -10,10 +10,9 @@ import (
 )
 
 var (
-	ChatID         int
-	Text           string
-	InvoicePayload string
-	update         Update
+	ChatID int
+	Text   string
+	update Update
 )
 
 type PreCheckoutQuery struct {
@@ -45,10 +44,11 @@ type Chat struct {
 }
 
 func WebHookHandler(w http.ResponseWriter, r *http.Request) {
+	update = Update{}
 	json.NewDecoder(r.Body).Decode(&update)
 	ChatID = update.Message.Chat.ID
 	Text = update.Message.Text
-	InvoicePayload = update.PreCheckoutQuery.InvoicePayload
+	PreCheckoutInvoicePayload := update.PreCheckoutQuery.InvoicePayload
 
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("failed to load .env")
@@ -58,10 +58,10 @@ func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 		Token: os.Getenv("TOKEN"),
 	}
 
-	if InvoicePayload == "payment-payload" {
+	b.ProcessMessage(Text)
+
+	if PreCheckoutInvoicePayload == "payment-payload" {
 		b.AnswerPreCheckoutQuery(update.PreCheckoutQuery.ID, true, "")
 	}
-	b.ProcessMessage(Text)
-	// log.Println("SuccessfulPayment Payload: ", update.Message.SuccessfulPayment.InvoicePayload)
-	// log.Printf("\nChat ID = %d\nText = %s", update.Message.Chat.ID, update.Message.Text)
+	log.Printf("Chat ID = %d\nText = %s", update.Message.Chat.ID, update.Message.Text)
 }
