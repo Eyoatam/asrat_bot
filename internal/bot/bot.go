@@ -16,7 +16,9 @@ const (
 	apiBaseURL = "https://api.telegram.org/bot%s"
 )
 
-var httpClient = &http.Client{}
+var (
+	httpClient = &http.Client{}
+)
 
 type Bot struct {
 	Token      string
@@ -127,7 +129,7 @@ func (b *Bot) ProcessMessage(update Update) {
 	message := update.Message.Text
 	chatID := update.Message.Chat.ID
 	switch message {
-	case "/start", "Help":
+	case "/start", "/help", "Help":
 		b.handleStartOrHelpCommand(chatID)
 	case "Pay Asrat":
 		b.SendMessage(chatID, "Please enter the amount", ReplyKeyboardMarkup{})
@@ -167,7 +169,7 @@ func (b *Bot) handleDefault(chatID int, message string) {
 		return
 	}
 
-	b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
+	b.SendMessage(chatID, "Invalid information. Please check /help for more information.", ReplyKeyboardMarkup{})
 }
 
 func (b *Bot) handlePayment(chatID int, amount int) {

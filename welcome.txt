@@ -5,5 +5,5 @@ What can this bot do?
 This is a bot for CMC Guenet Church members to pay their "Asrat"
 
 1. Send /start to start the bot 
-2. Enter the amount of money
+2. Enter the amount of money 
 3. Proceed to paying with your preferred payment provider (telebirr, banks or credit cards)
