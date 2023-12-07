@@ -19,8 +19,8 @@ func main() {
 	}
 
 	b := bot.NewBot(os.Getenv("TOKEN"), os.Getenv("WEBHOOKURL"))
-
 	b.Connect()
+
 	port := "4000"
 	if os.Getenv("PORT") != "" {
 		port = os.Getenv("PORT")

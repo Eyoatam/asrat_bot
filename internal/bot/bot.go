@@ -22,7 +22,7 @@ var (
 
 type Bot struct {
 	Token      string
-	WebHookUrl string
+	WebHookURL string
 }
 
 type TelegramResponse struct {
@@ -87,15 +87,16 @@ type AnswerPreCheckoutQueryRequest struct {
 	Ok              bool   `json:"ok"`
 }
 
-func NewBot(token string, webhookurl string) *Bot {
+func NewBot(token string, webhookURL string) *Bot {
 	return &Bot{
 		Token:      token,
-		WebHookUrl: webhookurl,
+		WebHookURL: webhookURL,
 	}
 }
+
 func (b *Bot) Connect() {
 	apiURL := fmt.Sprintf(apiBaseURL+"/setWebhook", b.Token)
-	body := map[string]string{"url": b.WebHookUrl}
+	body := map[string]string{"url": b.WebHookURL}
 
 	if err := b.postJSON(apiURL, body, "Bot connected successfully!"); err != nil {
 		log.Println("Failed to connect:", err)

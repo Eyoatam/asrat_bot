@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -55,10 +58,11 @@ func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 	chatID := update.Message.Chat.ID
 	text := update.Message.Text
 	preCheckoutInvoicePayload := update.PreCheckoutQuery.InvoicePayload
-	b := Bot{
-		Token: "6644223177:AAFigB_wm3rj879YNjWqa80pP67fFQ4x_1o",
-	}
 
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("failed to load .env")
+	}
+	b := NewBot(os.Getenv("TOKEN"), os.Getenv("WebHookURL"))
 	b.ProcessMessage(update)
 
 	if preCheckoutInvoicePayload == paymentPayload {
