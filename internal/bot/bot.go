@@ -12,6 +12,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	apiBaseURL = "https://api.telegram.org/bot%s"
+)
+
+var httpClient = &http.Client{}
+
 type Bot struct {
 	Token      string
 	WebHookUrl string
@@ -79,36 +85,47 @@ type AnswerPreCheckoutQueryRequest struct {
 	Ok              bool   `json:"ok"`
 }
 
+func NewBot(token string, webhookurl string) *Bot {
+	return &Bot{
+		Token:      token,
+		WebHookUrl: webhookurl,
+	}
+}
 func (b *Bot) Connect() {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", b.Token)
+	apiURL := fmt.Sprintf(apiBaseURL+"/setWebhook", b.Token)
+	body := map[string]string{"url": b.WebHookUrl}
 
-	body := map[string]string{
-		"url": b.WebHookUrl,
-	}
-
-	data, err := json.Marshal(body)
-	if err != nil {
-		log.Fatal("Error encoding JSON:", err)
-	}
-
-	dataReader := bytes.NewReader(data)
-
-	res, err := http.Post(apiURL, "application/json", dataReader)
-
-	if err != nil {
-		log.Fatal("POST request error: ", err)
-	}
-
-	defer res.Body.Close()
-
-	var resp TelegramResponse
-	json.NewDecoder(res.Body).Decode(&resp)
-	if resp.Ok {
-		fmt.Println("Bot connected successfully!")
+	if err := b.postJSON(apiURL, body, "Bot connected successfully!"); err != nil {
+		log.Println("Failed to connect:", err)
 	}
 }
 
-func (b *Bot) ProcessMessage(chatID int, message string) {
+func (b *Bot) postJSON(url string, data interface{}, successMessage string) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("error encoding JSON: %w", err)
+	}
+
+	response, err := httpClient.Post(url, "application/json", bytes.NewReader(jsonData))
+	if err != nil {
+		return fmt.Errorf("POST request error: %w", err)
+	}
+	defer response.Body.Close()
+
+	var resp TelegramResponse
+	if err := json.NewDecoder(response.Body).Decode(&resp); err != nil {
+		return fmt.Errorf("error decoding JSON: %w", err)
+	}
+
+	if resp.Ok {
+		fmt.Println(successMessage)
+	}
+	return nil
+}
+
+func (b *Bot) ProcessMessage(update Update) {
+	message := update.Message.Text
+	chatID := update.Message.Chat.ID
 	switch message {
 	case "/start", "Help":
 		b.handleStartOrHelpCommand(chatID)
@@ -116,6 +133,7 @@ func (b *Bot) ProcessMessage(chatID int, message string) {
 		b.SendMessage(chatID, "Please enter the amount", ReplyKeyboardMarkup{})
 	case "":
 		if update.Message.SuccessfulPayment.InvoicePayload == "payment-payload" {
+			fmt.Println("The chatID is: ", chatID)
 			b.SendMessage(chatID, "Thank you for paying!", ReplyKeyboardMarkup{})
 		}
 	default:
@@ -141,20 +159,22 @@ func (b *Bot) handleStartOrHelpCommand(chatID int) {
 
 func (b *Bot) handleDefault(chatID int, message string) {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Failed to load .env")
+		log.Println("Failed to load .env")
 	}
+
 	if amount, err := strconv.Atoi(message); err == nil && amount >= 56 {
-		b.handlePayment(amount)
+		b.handlePayment(chatID, amount)
 		return
 	}
+
 	b.SendMessage(chatID, "Invalid Information, please enter a valid amount", ReplyKeyboardMarkup{})
 }
 
-func (b *Bot) handlePayment(amount int) {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendInvoice", b.Token)
+func (b *Bot) handlePayment(chatID int, amount int) {
+	apiURL := fmt.Sprintf(apiBaseURL+"/sendInvoice", b.Token)
 
 	invoice := SendInvoiceRequest{
-		ChatID:        ChatID,
+		ChatID:        chatID,
 		Title:         "Asrat",
 		Description:   "Payment For Asrat",
 		Payload:       "payment-payload",
@@ -165,22 +185,13 @@ func (b *Bot) handlePayment(amount int) {
 		},
 	}
 
-	jsonInvoice, err := json.Marshal(invoice)
-	if err != nil {
-		log.Fatal("Error encoding JSON of Invoice Request: ", err)
+	if err := b.postJSON(apiURL, invoice, "Invoice sent successfully"); err != nil {
+		log.Println("Failed to send Invoice:", err)
 	}
-
-	invoiceReader := bytes.NewReader(jsonInvoice)
-	res, err := http.Post(apiURL, "application/json", invoiceReader)
-
-	if err != nil {
-		log.Fatal("Failed to send Invoice: ", err)
-	}
-	defer res.Body.Close()
 }
 
 func (b *Bot) SendMessage(chatID int, text string, markup ReplyKeyboardMarkup) {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
+	apiURL := fmt.Sprintf(apiBaseURL+"/sendMessage", b.Token)
 
 	var message interface{}
 
@@ -191,33 +202,19 @@ func (b *Bot) SendMessage(chatID int, text string, markup ReplyKeyboardMarkup) {
 		}
 	} else {
 		message = SendMessageButtonRequest{
-			ChatID:      ChatID,
+			ChatID:      chatID,
 			Text:        text,
 			ReplyMarkup: markup,
 		}
 	}
 
-	jsonMsg, err := json.Marshal(message)
-	if err != nil {
-		log.Fatal("Error encoding JSON: ", err)
+	if err := b.postJSON(apiURL, message, "Message sent successfully"); err != nil {
+		log.Println("Failed to send message:", err)
 	}
-
-	msgReader := bytes.NewReader(jsonMsg)
-	res, err := http.Post(apiURL, "application/json", msgReader)
-	if err != nil {
-		log.Fatal("Failed to send message: ", err)
-	}
-	var response TelegramResponse
-	json.NewDecoder(res.Body).Decode(&response)
-	fmt.Println(response)
-	if response.Ok {
-		fmt.Println("Message sent successfully")
-	}
-	defer res.Body.Close()
 }
 
 func (b *Bot) SendMessageInline(chatID int, text string, markup InlineKeyboardMarkup) {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", b.Token)
+	apiURL := fmt.Sprintf(apiBaseURL+"/sendMessage", b.Token)
 	var message interface{}
 
 	if markup.InlineKeyboard == nil {
@@ -232,51 +229,21 @@ func (b *Bot) SendMessageInline(chatID int, text string, markup InlineKeyboardMa
 			ReplyMarkup: markup,
 		}
 	}
-	jsonMsg, err := json.Marshal(message)
-	if err != nil {
-		log.Fatal("Error encoding JSON: ", err)
-	}
 
-	msgReader := bytes.NewReader(jsonMsg)
-	res, err := http.Post(apiURL, "application/json", msgReader)
-	if err != nil {
-		log.Fatal("Failed to send message: ", err)
+	if err := b.postJSON(apiURL, message, "Message sent successfully"); err != nil {
+		log.Println("Failed to send message:", err)
 	}
-
-	var response TelegramResponse
-	json.NewDecoder(res.Body).Decode(&response)
-	if response.Ok {
-		fmt.Println("Message sent successfully")
-	}
-	defer res.Body.Close()
 }
+
 func (b *Bot) AnswerPreCheckoutQuery(preCheckoutQueryID string, ok bool, errorMessage string) {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/answerPreCheckoutQuery", b.Token)
+	apiURL := fmt.Sprintf(apiBaseURL+"/answerPreCheckoutQuery", b.Token)
 
 	response := AnswerPreCheckoutQueryRequest{
 		PreCheckQueryID: preCheckoutQueryID,
 		Ok:              ok,
 	}
 
-	responseData, err := json.Marshal(response)
-	if err != nil {
-		log.Println("Error encoding JSON for answerPreCheckoutQuery response:", err)
-		return
+	if err := b.postJSON(apiURL, response, "Answer PreCheckoutQuery successful"); err != nil {
+		log.Println("Failed to Answer PreCheckoutQuery:", err)
 	}
-
-	responseReader := bytes.NewReader(responseData)
-	res, err := http.Post(apiURL, "application/json", responseReader)
-	if err != nil {
-		log.Println("Failed to send answerPreCheckoutQuery response:", err)
-		return
-	}
-	var resp TelegramResponse
-	json.NewDecoder(res.Body).Decode(&resp)
-	fmt.Println(resp.Result)
-	if !resp.Ok {
-		log.Println("Failed to Answer PreCheckoutQuery")
-		return
-	}
-	defer b.SendMessage(update.PreCheckoutQuery.From.ID, "Thank you for Paying!", ReplyKeyboardMarkup{})
-	defer res.Body.Close()
 }

@@ -4,15 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
-
-	"github.com/joho/godotenv"
 )
 
-var (
-	ChatID int
-	Text   string
-	update Update
+const (
+	paymentPayload = "payment-payload"
 )
 
 type PreCheckoutQuery struct {
@@ -49,24 +44,25 @@ type Chat struct {
 }
 
 func WebHookHandler(w http.ResponseWriter, r *http.Request) {
-	update = Update{}
-	json.NewDecoder(r.Body).Decode(&update)
-	ChatID = update.Message.Chat.ID
-	Text = update.Message.Text
-	PreCheckoutInvoicePayload := update.PreCheckoutQuery.InvoicePayload
-
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("failed to load .env")
+	update := Update{}
+	err := json.NewDecoder(r.Body).Decode(&update)
+	if err != nil {
+		log.Println("Error decoding JSON:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
+	chatID := update.Message.Chat.ID
+	text := update.Message.Text
+	preCheckoutInvoicePayload := update.PreCheckoutQuery.InvoicePayload
 	b := Bot{
-		Token: os.Getenv("TOKEN"),
+		Token: "6644223177:AAFigB_wm3rj879YNjWqa80pP67fFQ4x_1o",
 	}
 
-	b.ProcessMessage(ChatID, Text)
+	b.ProcessMessage(update)
 
-	if PreCheckoutInvoicePayload == "payment-payload" {
+	if preCheckoutInvoicePayload == paymentPayload {
 		b.AnswerPreCheckoutQuery(update.PreCheckoutQuery.ID, true, "")
 	}
-	log.Printf("Chat ID = %d\nText = %s", update.Message.Chat.ID, update.Message.Text)
+	log.Printf("Chat ID = %d\nText = %s", chatID, text)
 }
