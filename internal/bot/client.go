@@ -17,8 +17,13 @@ var (
 
 type PreCheckoutQuery struct {
 	ID             string `json:"id"`
+	From           From   `json:"from"`
 	TotalAmount    int    `json:"total_amount"`
 	InvoicePayload string `json:"invoice_payload"`
+}
+type From struct {
+	ID    int  `json:"id"`
+	IsBot bool `json:"is_bot"`
 }
 type Update struct {
 	UpdateID         int              `json:"update_id"`
@@ -58,7 +63,7 @@ func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 		Token: os.Getenv("TOKEN"),
 	}
 
-	b.ProcessMessage(Text)
+	b.ProcessMessage(ChatID, Text)
 
 	if PreCheckoutInvoicePayload == "payment-payload" {
 		b.AnswerPreCheckoutQuery(update.PreCheckoutQuery.ID, true, "")
