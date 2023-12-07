@@ -18,12 +18,9 @@ func main() {
 		log.Fatal("failed to load .env")
 	}
 
-	b := bot.Bot{
-		Token:      os.Getenv("TOKEN"),
-		WebHookUrl: os.Getenv("WEBHOOKURL"),
-	}
-
+	b := bot.NewBot(os.Getenv("TOKEN"), os.Getenv("WEBHOOKURL"))
 	b.Connect()
+
 	port := "4000"
 	if os.Getenv("PORT") != "" {
 		port = os.Getenv("PORT")
